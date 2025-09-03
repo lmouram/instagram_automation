@@ -1,0 +1,97 @@
+# Git Ignore File
+#
+# Este arquivo especifica arquivos e diretórios que o Git deve ignorar.
+# É crucial para manter o repositório limpo de artefatos de compilação,
+# arquivos de configuração local e, mais importante, segredos.
+
+# --- Segredos e Configurações de Ambiente Local ---
+# NUNCA envie segredos (chaves de API, tokens, senhas) para o repositório.
+# O arquivo .env contém essas informações e DEVE ser ignorado.
+/.env
+
+# Arquivos de configuração local para IDEs que podem conter informações sensíveis.
+/.vscode/settings.json
+/.idea/workspace.xml
+
+
+# --- Ambientes Virtuais Python ---
+# Ignore a pasta do ambiente virtual, independentemente do nome.
+/venv/
+/.venv/
+/env/
+/ENV/
+/virtualenv/
+/.virtualenv/
+
+
+# --- Caches e Artefatos do Python ---
+# Ignore o cache de bytecode do Python.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore caches de ferramentas Python (pip, pytest, mypy, etc.)
+.pytest_cache/
+.mypy_cache/
+.tox/
+.nox/
+pip-cache/
+pip-log.txt
+pip-delete-this-directory.txt
+.cache/
+
+
+# --- Artefatos Gerados pela Aplicação ---
+# Ignore o diretório de logs.
+/logs/
+
+# Ignore o arquivo de contexto gerado para LLMs, pois ele pode ser grande e é um artefato.
+/context_llm.toml
+
+# Ignore bancos de dados SQLite usados para desenvolvimento ou testes locais.
+*.sqlite
+*.sqlite3
+*.db
+
+# Ignore arquivos de mídia de teste ou temporários.
+/media_test/
+
+
+# --- Relatórios de Teste e Cobertura de Código ---
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+
+
+# --- Configurações de IDEs e Editores ---
+# Visual Studio Code
+.vscode/*
+!.vscode/extensions.json
+
+# JetBrains / PyCharm
+.idea/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Netbeans
+/nbproject/
+
+# Vim
+*.swp
+*.swo
+
+
+# --- Arquivos de Sistema Operacional ---
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
