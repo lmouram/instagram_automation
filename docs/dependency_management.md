@@ -1,3 +1,5 @@
+/docs/dependency.management.md
+
 # Gerenciamento de Dependências com `uv`
 
 ## 1. Introdução

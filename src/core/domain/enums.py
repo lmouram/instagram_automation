@@ -87,3 +87,11 @@ class MediaType(str, Enum):
 
     VIDEO = "VIDEO"
     """Um arquivo de vídeo (ex: MP4)."""
+
+
+class WorkflowStatus(str, Enum):
+    PENDING = "PENDENTE"
+    RUNNING = "EM_EXECUCAO"
+    COMPLETED = "CONCLUIDO"
+    FAILED_RETRYABLE = "FALHOU_RETRIAVEL"
+    FAILED_PERMANENT = "FALHOU_PERMANENTE"

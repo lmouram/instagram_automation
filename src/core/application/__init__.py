@@ -3,19 +3,17 @@
 """
 Pacote da Camada de Aplicação.
 
-Este arquivo __init__.py expõe publicamente todas as funções de caso de uso,
-facilitando sua importação e uso pelos adaptadores de entrada (driving adapters)
-como a UI, CLIs ou triggers de API.
+Este pacote contém a lógica de negócio que orquestra as entidades de domínio.
+Ele é dividido em dois subpacotes principais:
+
+- `use_cases`: Contém casos de uso atômicos e reutilizáveis que representam
+  uma única capacidade de negócio (ex: criar um post, gerar um dossiê).
+
+- `orchestrators`: Contém casos de uso de nível superior que compõem múltiplos
+  casos de uso e outras lógicas para executar processos de negócio complexos
+  e resilientes (workflows).
 """
-
-from .approve_post import approve_post_use_case
-from .create_post import create_post_use_case
-from .publish_post_immediately import publish_post_immediately_use_case
-from .publish_scheduled_posts import publish_scheduled_posts_use_case
-
-__all__ = [
-    "approve_post_use_case",
-    "create_post_use_case",
-    "publish_post_immediately_use_case",
-    "publish_scheduled_posts_use_case",
-]
+# Este __init__.py é intencionalmente deixado sem código para servir como um
+# "pacote namespace". As importações devem ser feitas a partir dos subpacotes.
+# Ex: from src.core.application.use_cases import create_post_use_case
+# Ex: from src.core.application.orchestrators import create_post_from_scratch_orchestrator

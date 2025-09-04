@@ -37,6 +37,8 @@ from .observability import ObservabilityPort
 from .post_repository import PostRepositoryPort
 from .social_publisher import SocialMediaPublisherPort
 from .storage import StoragePort
+from .workflow_repository import WorkflowRepositoryPort
+from .state_repository import StateRepositoryPort
 
 __all__ = [
     "AuditEventRepositoryPort",
@@ -46,4 +48,6 @@ __all__ = [
     "PostRepositoryPort",
     "SocialMediaPublisherPort",
     "StoragePort",
+    "WorkflowRepositoryPort", # <-- Adicionado
+    "StateRepositoryPort", # <-- Adicionado
 ]

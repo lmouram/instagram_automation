@@ -23,11 +23,12 @@ dependencies = [
     "streamlit>=1.35.0",
     "supabase>=2.4.2",
     "python-dotenv>=1.0.1",
-    "google-genai>=1.32.0", 
+    "google-genai>=1.32.0",
     "requests>=2.31.0",
     "colorlog>=6.8.2",
     "tenacity>=8.2.3",
     "ratelimit>=2.2.1",
+    "filelock>=3.19.1",
 ]
 
 [build-system]

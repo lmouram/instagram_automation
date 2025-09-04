@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 # Importa os Enums que definem os tipos e status controlados pelo domínio.
-from .enums import MediaType, PostStatus, PostType
+from .enums import MediaType, PostStatus, PostType, WorkflowStatus
 
 
 @dataclass
@@ -140,3 +140,33 @@ class AuditEvent:
 
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
     """Timestamp UTC de quando o evento de auditoria foi registrado."""
+
+
+@dataclass
+class WorkflowRun:
+    """Representa uma única execução de um workflow de negócio."""
+    workflow_name: str
+    status: WorkflowStatus
+    run_id: str = field(default_factory=lambda: str(uuid4()), init=False) # init=False é melhor prática para IDs auto-gerados
+    current_step: str = "start"
+    step_attempt: int = 0
+    payload: Dict[str, Any] = field(default_factory=dict)       # Imutável
+    state_data: Dict[str, Any] = field(default_factory=dict)    # Mutável
+    last_error_msg: Optional[str] = None
+    retry_at: Optional[datetime] = None
+    version: int = 0  # Para controle de concorrência otimista
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
+
+
+@dataclass
+class RunContext:
+    """
+    Um DTO que carrega o contexto de uma execução de workflow específica.
+
+    É usado para passar informações de identificação do workflow entre as
+    camadas, permitindo que serviços como o `StateRepository` saibam em qual
+    "escopo" de execução eles estão operando.
+    """
+    workflow_name: str
+    run_id: str

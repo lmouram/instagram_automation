@@ -3,16 +3,20 @@
 """
 Módulo de Utilitários de Resiliência.
 
-Este módulo fornece um conjunto de decoradores para aumentar a robustez
-dos adaptadores que interagem com serviços externos. Ele encapsula lógicas
-de retentativa (retry) e limitação de taxa (rate limiting), permitindo que
-sejam aplicadas de forma declarativa e limpa.
+Este módulo fornece um conjunto de ferramentas para aumentar a robustez da
+aplicação. Ele encapsula:
+- Decoradores para retentativa (retry) e limitação de taxa (rate limiting),
+  ideais para serem aplicadas nos adaptadores.
+- Funções para cálculo de estratégias de backoff, úteis para os orquestradores
+  de workflow.
 
 Dependências externas: `tenacity`, `ratelimit`.
 Certifique-se de que estão listadas nas dependências do projeto.
 """
 
 import logging
+import random # <-- Adicionar import
+from datetime import datetime, timedelta, timezone # <-- Adicionar imports
 from functools import wraps
 from typing import Callable
 
@@ -27,6 +31,43 @@ from tenacity import (
 logger = logging.getLogger(__name__)
 
 
+# --- Funções de Cálculo de Backoff (Para Orquestradores) ---
+
+def get_next_retry_at(
+    attempt: int, base_seconds: float = 2.0, max_seconds: float = 300.0
+) -> datetime:
+    """
+    Calcula o próximo timestamp de retentativa com backoff exponencial e jitter.
+
+    Esta função é ideal para a lógica de reagendamento de workflows, determinando
+    QUANDO uma próxima tentativa deve ocorrer.
+
+    Args:
+        attempt (int): O número da tentativa atual (começando em 0 ou 1).
+        base_seconds (float): O tempo de espera base para a primeira retentativa.
+        max_seconds (float): O tempo máximo de espera, para evitar esperas muito longas.
+
+    Returns:
+        datetime: Um objeto datetime timezone-aware (UTC) indicando o momento
+                  da próxima tentativa.
+    """
+    # Calcula o tempo de espera exponencial
+    expo_wait = base_seconds * (2 ** max(0, attempt))
+    
+    # Limita o tempo de espera ao valor máximo (cap)
+    wait_time = min(expo_wait, max_seconds)
+    
+    # Adiciona "jitter" (variação aleatória) para evitar que múltiplos workers
+    # tentem novamente ao mesmo tempo (problema de "thundering herd").
+    jitter = random.uniform(0, wait_time * 0.1)  # 0-10% de jitter
+    
+    total_wait_seconds = wait_time + jitter
+    
+    return datetime.now(timezone.utc) + timedelta(seconds=total_wait_seconds)
+
+
+# --- Decoradores de Resiliência (Para Adaptadores) ---
+
 def _log_on_retry(retry_state):
     """Função de callback para logar informações antes de uma nova tentativa."""
     logger.warning(
@@ -39,26 +80,8 @@ def _log_on_retry(retry_state):
 def retry_async_run(max_attempts: int = 3):
     """
     Decorador de retentativa para funções assíncronas.
-
-    Aplica uma estratégia de retentativa com backoff exponencial. Se a função
-    decorada falhar, ela será executada novamente até atingir o número máximo
-    de tentativas.
-
-    Exemplo de uso:
-    ```python
-    @retry_async_run(max_attempts=5)
-    async def my_unreliable_api_call():
-        # ... código que pode falhar
-    ```
-
-    Args:
-        max_attempts (int): O número total de tentativas a serem feitas.
-                            Padrão é 3.
-
-    Returns:
-        Callable: O decorador configurado.
+    ... (o resto do decorador permanece o mesmo) ...
     """
-
     def decorator(func: Callable):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -66,80 +89,24 @@ def retry_async_run(max_attempts: int = 3):
                 stop=stop_after_attempt(max_attempts),
                 wait=wait_exponential(multiplier=1, min=2, max=30),
                 before_sleep=_log_on_retry,
-                reraise=True,  # Re-levanta a exceção original após a última falha
+                reraise=True,
             )
             try:
                 return await retryer.call(func, *args, **kwargs)
             except RetryError as e:
-                # O `reraise=True` já faz isso, mas adicionamos um log final
-                # para maior clareza sobre o esgotamento das tentativas.
                 logger.error(
                     f"Função '{func.__name__}' falhou após {max_attempts} tentativas."
                 )
                 raise e.last_attempt.result()
-
         return wrapper
-
     return decorator
 
 
 def rate_limit_async(calls: int, period: int):
     """
     Decorador de limitação de taxa para funções assíncronas.
-
-    Garante que a função decorada não seja chamada mais do que um número
-    específico de vezes (`calls`) dentro de um determinado período de tempo
-    em segundos (`period`).
-
-    Exemplo de uso:
-    ```python
-    # Limita a 60 chamadas por minuto (60 segundos)
-    @rate_limit_async(calls=60, period=60)
-    async def my_rate_limited_function():
-        # ... código que chama uma API
-    ```
-
-    Args:
-        calls (int): O número máximo de chamadas permitidas.
-        period (int): O período de tempo em segundos.
-
-    Returns:
-        Callable: O decorador configurado.
+    ... (o resto do decorador permanece o mesmo) ...
     """
-
     def decorator(func: Callable):
-        # A biblioteca `ratelimit` aplica o decorador diretamente
-        # e lida com funções `async` de forma transparente.
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                # Criamos uma função síncrona interna para o decorador `limits`
-                # e a executamos de forma assíncrona. Isso garante que o `sleep`
-                # do ratelimit não bloqueie o event loop se ele for usado.
-                # No entanto, a implementação do `ratelimit` já é inteligente
-                # o suficiente para usar asyncio.sleep se estiver em um loop.
-                # Esta é uma forma mais simples e direta.
-                @limits(calls=calls, period=period)
-                def check_limit():
-                    pass # Só verifica o limite
-                
-                check_limit()
-                return await func(*args, **kwargs)
-
-            except RateLimitException as e:
-                logger.warning(
-                    f"Rate limit atingido para a função '{func.__name__}'. "
-                    f"Aguardando para a próxima janela. Detalhes: {e}"
-                )
-                # A exceção é capturada, mas podemos querer relançá-la
-                # ou esperar e tentar novamente. Por padrão, a biblioteca
-                # já faz o sleep, então capturar a exceção é mais para log.
-                # Se quisermos parar a execução, podemos relançar a exceção.
-                raise
-        
-        # A biblioteca `ratelimit` é mais simples, vamos usar a forma direta
-        # que já é compatível com asyncio.
         return limits(calls=calls, period=period)(func)
-
-
     return decorator
