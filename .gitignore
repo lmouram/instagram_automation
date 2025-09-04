@@ -8,6 +8,7 @@
 # NUNCA envie segredos (chaves de API, tokens, senhas) para o repositório.
 # O arquivo .env contém essas informações e DEVE ser ignorado.
 /.env
+/.env.test
 
 # Arquivos de configuração local para IDEs que podem conter informações sensíveis.
 /.vscode/settings.json
@@ -56,6 +57,8 @@ pip-delete-this-directory.txt
 # Ignore arquivos de mídia de teste ou temporários.
 /media_test/
 
+# Ignore arquivos do diretório de estado
+/states/
 
 # --- Relatórios de Teste e Cobertura de Código ---
 .coverage

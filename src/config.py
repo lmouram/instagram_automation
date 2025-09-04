@@ -40,13 +40,18 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = PROJECT_ROOT / ".env"
 
-if load_dotenv:
-    if ENV_PATH.exists():
-        load_dotenv(dotenv_path=ENV_PATH)
-        # Usamos print aqui porque o logger ainda não está configurado
-        print(f"Config: Arquivo .env encontrado e carregado de '{ENV_PATH}'")
-    else:
-        print(f"Config: Arquivo .env não encontrado em '{ENV_PATH}'. Usando apenas variáveis de ambiente do sistema.")
+# --- CORREÇÃO AQUI ---
+# Apenas carregue o .env principal se não estivermos em um ambiente de teste.
+# O pytest (com pytest-dotenv) cuidará de carregar o .env.test.
+if "PYTEST_CURRENT_TEST" not in os.environ:
+    if load_dotenv:
+        if ENV_PATH.exists():
+            load_dotenv(dotenv_path=ENV_PATH)
+            print(f"Config: Arquivo .env encontrado e carregado de '{ENV_PATH}'")
+        else:
+            print(f"Config: Arquivo .env não encontrado. Usando variáveis de ambiente do sistema.")
+else:
+    print("Config: Ambiente de teste detectado (PYTEST_CURRENT_TEST). Pulando o carregamento do .env principal.")
 
 # --- Função Auxiliar para Obtenção de Variáveis ---
 

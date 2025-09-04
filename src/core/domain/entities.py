@@ -12,7 +12,7 @@ Utilizamos `dataclasses` para uma definição concisa e clara das estruturas de 
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
@@ -98,10 +98,10 @@ class Post:
     """
 
     # Timestamps de auditoria
-    created_at: datetime = field(default_factory=datetime.utcnow, init=False)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
     """Timestamp UTC da criação do registro do post no sistema."""
 
-    updated_at: datetime = field(default_factory=datetime.utcnow, init=False)
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
     """Timestamp UTC da última atualização do registro do post."""
 
 
@@ -138,5 +138,5 @@ class AuditEvent:
     Ex: {'motivo_rejeicao': 'Imagem de baixa qualidade', 'tentativa': 3}.
     """
 
-    timestamp: datetime = field(default_factory=datetime.utcnow, init=False)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc), init=False)
     """Timestamp UTC de quando o evento de auditoria foi registrado."""

@@ -7,6 +7,6 @@ Este pacote contém implementações concretas das portas de repositório,
 como PostRepositoryPort e AuditEventRepositoryPort.
 """
 
-from .supabase_adapter import SupabaseAdapter
+from .repositories import SupabasePostRepository, SupabaseAuditEventRepository
 
-__all__ = ["SupabaseAdapter"]
+__all__ = ["SupabasePostRepository", "SupabaseAuditEventRepository"]

@@ -30,7 +30,7 @@ from src.core.application import publish_scheduled_posts_use_case
 from src.adapters.llm.gemini_adapter import GeminiAdapter
 from src.adapters.media.google_image_adapter import GoogleImageAdapter
 from src.adapters.observability.logging_adapter import LoggingObservabilityAdapter
-from src.adapters.persistence.supabase_adapter import SupabaseAdapter
+from src.adapters.persistence import SupabasePostRepository, SupabaseAuditEventRepository
 from src.adapters.social.instagram_adapter import InstagramAdapter
 from src.adapters.storage.supabase_storage_adapter import SupabaseStorageAdapter
 
@@ -57,10 +57,13 @@ def setup_dependencies():
     # Adaptadores
     observability_adapter = LoggingObservabilityAdapter(logger.get_logger("ObservabilityAdapter"))
     persistence_adapter = SupabaseAdapter(supabase_client)
+    post_repo = SupabasePostRepository(supabase_client)
+    audit_repo = SupabaseAuditEventRepository(supabase_client)
     social_publisher_adapter = InstagramAdapter(
         account_id=config.INSTAGRAM_ACCOUNT_ID,
         access_token=config.META_ACCESS_TOKEN
     )
+
     
     log.info("Dependências inicializadas com sucesso.")
     
@@ -68,6 +71,8 @@ def setup_dependencies():
         "observability": observability_adapter,
         "persistence": persistence_adapter,
         "social_publisher": social_publisher_adapter,
+        "post_repository": post_repo,
+        "audit_repository": audit_repo,
     }
 
 
@@ -88,9 +93,9 @@ async def main():
         # 2. Executa o caso de uso
         script_logger.info("Invocando o caso de uso 'publish_scheduled_posts_use_case'...")
         results = await publish_scheduled_posts_use_case(
-            post_repository=deps["persistence"],
+            post_repository=deps["post_repository"],
             social_publisher=deps["social_publisher"],
-            audit_repository=deps["persistence"], # O mesmo adaptador implementa ambas as portas
+            audit_repository=deps["audit_repository"],
             observability=deps["observability"],
         )
         script_logger.info(f"Caso de uso concluído. Resultado: {results}")

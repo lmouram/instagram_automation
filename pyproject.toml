@@ -1,131 +1,75 @@
 # pyproject.toml
 #
-# Este é o arquivo de configuração central para o projeto Python,
-# conforme definido pela PEP 518, PEP 621 e outras.
-# Estamos usando o Poetry (https://python-poetry.org/) para gerenciar
-# as dependências e o empacotamento do projeto.
+# Arquivo de configuração de projeto gerenciado com `uv`.
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-
-[tool.poetry]
+[project]
 name = "instagram-automation"
 version = "0.1.0"
 description = "Uma aplicação para automatizar a criação, aprovação e publicação de conteúdo no Instagram usando IA."
-authors = ["Seu Nome <seu.email@example.com>"]
+authors = [{ name = "Seu Nome", email = "seu.email@example.com" }]
 readme = "README.md"
-packages = [{include = "src"}]
-license = "MIT"
-repository = "https://github.com/seu-usuario/instagram-automation"
+requires-python = ">=3.10"
+license = { text = "MIT" }
 keywords = ["python", "instagram", "automation", "llm", "hexagonal-architecture"]
 classifiers = [
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Topic :: Communications",
-    "Development Status :: 3 - Alpha",
 ]
 
+# Dependências de produção
+dependencies = [
+    "streamlit>=1.35.0",
+    "supabase>=2.4.2",
+    "python-dotenv>=1.0.1",
+    "google-genai>=1.32.0", 
+    "requests>=2.31.0",
+    "colorlog>=6.8.2",
+    "tenacity>=8.2.3",
+    "ratelimit>=2.2.1",
+]
 
-[tool.poetry.dependencies]
-# --- Dependências de Produção ---
-# O 'python' é a dependência base que define a versão do interpretador.
-python = "^3.10"
-
-# Framework para a Interface de Usuário (UI)
-streamlit = "^1.35.0"
-
-# Cliente oficial do Supabase para interagir com o banco de dados e storage
-supabase = "^2.4.2"
-
-# Carrega variáveis de ambiente de um arquivo .env para o ambiente local
-python-dotenv = "^1.0.1"
-
-# Novo SDK do Google para interagir com Gemini (texto) e Imagen (imagem)
-google-generative-ai = { version = "0.7.1", optional = true } # Exemplo de versão para o novo SDK, verificar a mais recente
-google-ai-generativelanguage = "^0.7.0"
-
-# Biblioteca para fazer requisições HTTP (usada pelo adaptador do Instagram)
-requests = "^2.31.0"
-
-# Para logs coloridos no console, melhorando a legibilidade
-colorlog = "^6.8.2"
-
-# Para implementar a lógica de retentativas (retry) de forma robusta
-tenacity = "^8.2.3"
-
-# Para implementar a lógica de limitação de taxa (rate limiting)
-ratelimit = "^2.2.1"
+[build-system]
+# O uv pode usar backends de build, mas para uma aplicação, isso pode não ser necessário.
+# Se fôssemos criar um pacote instalável, o uv init criaria isso para nós.
+# Por enquanto, podemos omitir ou usar o padrão.
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 
-[tool.poetry.group.dev.dependencies]
-# --- Dependências de Desenvolvimento ---
-# Ferramentas usadas apenas para desenvolvimento, testes e qualidade de código.
+[dependency-groups]
+# Dependências de desenvolvimento, instaladas com `uv pip sync --with dev`
+# ou por padrão se configurado.
+dev = [
+    "pytest>=8.2.1",
+    "black>=24.4.2",
+    "ruff>=0.4.4",
+    "toml>=0.10.2",
+    "pytest-mock>=3.12.0",
+    "pytest-env>=1.1.3",
+    "pytest-asyncio>=0.23.6",
+    "pytest-dotenv>=0.5.2",
+]
 
-# Framework de testes
-pytest = "^8.2.1"
-
-# O formatador de código Python "opinativo", para manter o estilo consistente
-black = "^24.4.2"
-
-# Um linter extremamente rápido e configurável para Python
-ruff = "^0.4.4"
-
-# Biblioteca para ler e escrever arquivos TOML (usada pelo context_builder.py)
-toml = "^0.10.2"
-
-
-# [tool.poetry.scripts]
-# --- Scripts e Atalhos (Opcional) ---
-# Permite executar comandos comuns com `poetry run <nome_do_script>`
-# run-ui = "streamlit run streamlit_app.py"
-# run-publisher = "python scripts/run_publisher.py"
-# build-context = "python src/utils/context_builder.py"
-# lint = "ruff check src"
-# format = "black src"
-
-
-# --- Configuração das Ferramentas de Qualidade de Código ---
-
+# --- Ferramentas de Qualidade de Código (o uv respeita estas seções) ---
 [tool.black]
-# Configuração do formatador Black
 line-length = 88
 target-version = ['py310']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
 
 [tool.ruff]
-# Configuração do linter Ruff
 line-length = 88
 target-version = "py310"
 
 [tool.ruff.lint]
-# Seleciona as regras a serem aplicadas.
-# E = pycodestyle (erros)
-# W = pycodestyle (avisos)
-# F = pyflakes
-# I = isort
-# C = mccabe (complexidade)
 select = ["E", "W", "F", "I", "C"]
-ignore = []
 
 [tool.ruff.lint.isort]
-# Garante que as importações do nosso projeto (`src`) sejam tratadas
-# como "first-party".
 known-first-party = ["src"]
+
+# --- Configuração do Sistema de Build (Hatch) ---
+# Esta seção informa ao `hatchling` onde encontrar o código-fonte do nosso pacote.
+# É essencial para que comandos como `uv run` ou `uv pip install -e .` funcionem.
+[tool.hatch.build.targets.wheel]
+# Mapeia o diretório 'src' como a raiz do nosso pacote.
+packages = ["src"]

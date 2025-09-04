@@ -11,8 +11,11 @@ de erros, seguindo estritamente as diretrizes do SDK `google.genai`.
 
 import json
 import logging
+import re
 import threading
 import time
+from typing import List, Optional
+from pydantic import BaseModel, Field
 
 # Importação segura do SDK do Gemini, conforme a FONTE ÚNICA DA VERDADE
 try:
@@ -35,6 +38,21 @@ class GeminiAPIError(Exception):
     """Exceção customizada para erros relacionados à API do Gemini."""
     pass
 
+# --- Pydantic Schemas para Respostas Estruturadas ---
+
+class DossierSchema(BaseModel):
+    """
+    Schema para a resposta JSON esperada ao gerar um dossiê.
+    Define a estrutura que o Gemini deve retornar.
+    """
+    dossie: str = Field(
+        ..., 
+        description="O dossiê completo e bem-organizado em formato Markdown."
+    )
+    search_queries_used: List[str] = Field(
+        ..., 
+        description="A lista de queries de busca usadas para a investigação."
+    )
 
 class GeminiAdapter(ContentGeneratorPort):
     """
@@ -98,7 +116,7 @@ class GeminiAdapter(ContentGeneratorPort):
                 time.sleep(sleep_time)
             self._last_request_time = time.time()
 
-    def _build_prompt(self, theme: str) -> str:
+    def _build_instagram_post_prompt(self, theme: str) -> str:
         """Cria um prompt detalhado para gerar uma legenda de Instagram."""
         return (
             "Aja como um especialista em mídias sociais criando um post para o Instagram.\n"
@@ -111,6 +129,65 @@ class GeminiAdapter(ContentGeneratorPort):
             "- Finalize com uma seção contendo de 5 a 7 hashtags relevantes e populares sobre o tema.\n\n"
             "**Legenda Gerada:**"
         ).format(theme=theme)
+
+    # --- NOVO MÉTODO DE PROMPT (da FONTE ÚNICA DA VERDADE) ---
+    def _build_dossier_prompt(self, theme: str) -> str:
+        """
+        Cria um prompt para guiar o LLM a realizar uma pesquisa investigativa
+        e gerar um dossiê detalhado sobre um tema, com a ferramenta de busca ativada.
+        """
+        return f"""
+    # Missão
+    Você é um Jornalista Investigativo e Estrategista de Pesquisa. Sua especialidade é desconstruir um tema, conduzir uma investigação profunda usando a ferramenta de busca e, em seguida, sintetizar as descobertas em um dossiê completo e bem fundamentado.
+
+    # Tema para Investigação
+    "{theme}"
+
+    # Tarefa Principal: Processo de Investigação em 3 Etapas
+    Sua tarefa é gerar um dossiê de pesquisa (`dossie`) e a lista de queries usadas (`search_queries_used`). Para isso, você DEVE seguir rigorosamente as três etapas abaixo.
+
+    ## Etapa 1: Análise e Desconstrução do Tema
+    Primeiro, analise o tema fornecido e identifique a **PERGUNTA CENTRAL** ou a **AFIRMAÇÃO PRINCIPAL** a ser investigada. Desconstrua o tema em seus componentes essenciais para guiar sua pesquisa.
+
+    1.  **Sujeito Principal:** Quem ou o que é o foco principal? (Ex: uma tecnologia, uma pessoa, um conceito, um evento).
+    2.  **Contexto/Ação:** Qual é o contexto, a ação ou a relevância do sujeito? (Ex: seu impacto na indústria, sua história, como funciona).
+    3.  **Escopo:** Qual é a delimitação da investigação? (Ex: focado em um país, em um período de tempo, em uma aplicação específica).
+
+    Essa análise inicial é o núcleo da sua investigação.
+
+    ## Etapa 2: Planejamento da Estratégia de Pesquisa
+    Com base na sua análise, você tem autonomia para definir o melhor caminho de pesquisa. Seu objetivo é decidir quais informações são cruciais para entender completamente o tema.
+
+    Para isso, você deve:
+    1.  **Identificar Ângulos de Investigação:** Pense em quais áreas precisam de aprofundamento. Exemplos:
+        -   Definição e Histórico do [Sujeito].
+        -   Como o [Sujeito] funciona (Mecanismos, Detalhes Técnicos).
+        -   Aplicações Práticas e Casos de Uso.
+        -   Impacto, Vantagens e Desvantagens.
+        -   Principais Atores (Empresas, Pesquisadores, Instituições).
+        -   Estado da Arte e Tendências Futuras.
+        -   Dados, Estatísticas ou Estudos Relevantes.
+    2.  **Criar as Queries de Busca:** Com base nos seus ângulos de investigação, formule as queries de busca específicas que você usaria para encontrar essas informações. Essas queries devem ser listadas no campo `search_queries_used` da sua resposta final.
+
+    ## Etapa 3: Execução da Pesquisa e Criação do Dossiê
+    Execute seu plano de pesquisa usando a ferramenta de busca. Colete informações de fontes confiáveis.
+
+    Sintetize todas as suas descobertas em um dossiê detalhado e bem organizado no campo `dossie`. O dossiê deve ser formatado em **Markdown** e incluir, no mínimo, as seguintes seções:
+    -   **Resumo Executivo:** Um parágrafo inicial que resume os pontos mais importantes da sua investigação.
+    -   **Contexto e Definição:** O que é o tema e qual seu histórico relevante.
+    -   **Análise Aprofundada:** O corpo principal da pesquisa, dividido em subtópicos claros (ex: "Como Funciona", "Aplicações Principais", "Impacto no Mercado").
+    -   **Atores Chave:** Lista e descrição das principais entidades envolvidas.
+    -   **Conclusão e Perspectivas Futuras:** Um resumo das implicações e o que esperar para o futuro.
+
+    # Formato da Saída (JSON Obrigatório)
+    Sua resposta DEVE ser um único objeto JSON válido, sem nenhum texto antes ou depois. O exemplo abaixo mostra o formato exato e a qualidade do conteúdo esperado.
+
+    ```json
+    {{
+    "dossie": "dossie completo em markdown",
+    "search_queries_used": ["query 1", "query 2"]
+    }}
+    ```"""
 
     async def generate_text_for_post(self, theme: str) -> str:
         """
@@ -126,7 +203,7 @@ class GeminiAdapter(ContentGeneratorPort):
             GeminiAPIError: Se a geração de texto falhar após todas as retentativas.
         """
         self._rate_limit()
-        prompt = self._build_prompt(theme)
+        prompt = self._build_instagram_post_prompt(theme)
         logger.info(f"Gerando texto com Gemini para o tema: '{theme}'")
         logger.debug(f"Prompt completo enviado ao Gemini:\n{prompt}")
 
@@ -183,5 +260,95 @@ class GeminiAdapter(ContentGeneratorPort):
             f"Falha na geração de texto com Gemini para o tema '{theme}' "
             f"após {self.max_retries} tentativas. Último erro: {last_exception}"
         )
+        logger.error(error_msg)
+        raise GeminiAPIError(error_msg) from last_exception
+
+    # --- NOVO MÉTODO PRIVADO (da FONTE ÚNICA DA VERDADE) ---
+    def _extract_json_from_text(self, text: str) -> Optional[dict]:
+        """
+        Extrai um bloco de JSON de uma string de texto usando expressões regulares.
+        """
+        # Procura por um bloco de código JSON ```json ... ```
+        match = re.search(r'```json\s*(\{.*?\})\s*```', text, re.DOTALL)
+        if not match:
+            # Se não encontrar, procura por qualquer objeto JSON { ... }
+            match = re.search(r'(\{.*?\})', text, re.DOTALL)
+        
+        if match:
+            try:
+                return json.loads(match.group(1))
+            except json.JSONDecodeError:
+                logger.error("Falha ao fazer o parse do JSON extraído do texto.", exc_info=True)
+                return None
+        return None
+
+    # --- NOVO MÉTODO PRINCIPAL ---
+    async def generate_dossier(self, theme: str) -> str:
+        """
+        Gera um dossiê sobre um tema, utilizando a ferramenta de busca do Google.
+
+        Args:
+            theme (str): O tema a ser pesquisado.
+
+        Returns:
+            str: O dossiê em formato Markdown.
+
+        Raises:
+            GeminiAPIError: Se a geração falhar após todas as retentativas.
+        """
+        self._rate_limit()
+        prompt = self._build_dossier_prompt(theme)
+        logger.info(f"Gerando dossiê com pesquisa para o tema: '{theme}'")
+        
+        contents = [self._genai_types.Part.from_text(text=prompt)]
+        
+        # Configuração da chamada, conforme FONTE ÚNICA DA VERDADE
+        tools = [self._genai_types.Tool(google_search=self._genai_types.GoogleSearch())]
+        generation_config_obj = self._genai_types.GenerateContentConfig(
+            tools=tools,
+        )
+
+        last_exception = None
+        for attempt in range(self.max_retries):
+            try:
+                # NOTA: Chamada síncrona, idealmente em thread pool em ambiente asyncio
+                response = self._client.models.generate_content(
+                    model=f"models/{self.model_name}",
+                    contents=contents,
+                    config=generation_config_obj
+                )
+
+                # --- LÓGICA DE PARSING MODIFICADA ---
+                if response.text:
+                    # Extrai o JSON do texto de resposta
+                    json_data = self._extract_json_from_text(response.text)
+                    
+                    if json_data:
+                        # Valida o JSON com o nosso schema Pydantic
+                        parsed_data = DossierSchema.model_validate(json_data)
+                        
+                        logger.info(f"Dossiê gerado e parseado com sucesso para o tema '{theme}' na tentativa {attempt + 1}.")
+                        return parsed_data.dossie # <-- MUDANÇA: 'dossie' em vez de 'context_summary_markdown'
+                    else:
+                        last_exception = GeminiAPIError(f"A resposta do Gemini foi recebida, mas não continha um JSON válido. Resposta: {response.text[:200]}...")
+                        logger.warning(f"Gemini (Tentativa {attempt + 1}): {last_exception}")
+                else:
+                    # Lógica de diagnóstico de bloqueio
+                    error_detail = "Resposta do Gemini vazia."
+                    if hasattr(response, 'prompt_feedback') and response.prompt_feedback.block_reason:
+                        error_detail = f"Resposta do Gemini bloqueada. Razão: '{response.prompt_feedback.block_reason.name}'"
+                    last_exception = GeminiAPIError(error_detail)
+                    logger.warning(f"Gemini (Tentativa {attempt + 1}): {error_detail}. Retentando...")
+
+
+            except Exception as e:
+                last_exception = e
+                logger.error(f"Gemini (Tentativa {attempt + 1}): Falha na API: {type(e).__name__} - {e}", exc_info=False)
+            
+            if attempt < self.max_retries - 1:
+                sleep_time = self.delay_seconds * (2 ** attempt)
+                time.sleep(sleep_time)
+
+        error_msg = f"Falha na geração do dossiê para '{theme}' após {self.max_retries} tentativas. Último erro: {last_exception}"
         logger.error(error_msg)
         raise GeminiAPIError(error_msg) from last_exception

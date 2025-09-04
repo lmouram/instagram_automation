@@ -8,7 +8,7 @@ de sua publicação.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from src.core.domain.entities import AuditEvent, Post
@@ -59,7 +59,7 @@ async def approve_post_use_case(
 
     post.status = PostStatus.APPROVED
     post.scheduled_at = scheduled_at
-    post.updated_at = datetime.utcnow()
+    post.updated_at = datetime.now(timezone.utc)
     await post_repository.save(post)
     logger.info(f"Post {post_id} aprovado. Agendado para: {scheduled_at.isoformat()}")
 
