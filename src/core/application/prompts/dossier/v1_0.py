@@ -1,10 +1,12 @@
 # src/core/application/prompts/dossier/v1_0.py
 
 """
-Módulo de Prompt para a Geração de Dossiês de Pesquisa.
+Módulo de Prompt para a Geração de Dossiês de Pesquisa (v1.0 - Refinado).
 
-Este arquivo encapsula toda a "receita" para a tarefa de negócio de criar
-um dossiê detalhado sobre um tema, utilizando um LLM com capacidade de busca.
+Este arquivo encapsula a "receita" de negócio para criar um dossiê técnico,
+científico ou acadêmico sobre um tema. O prompt foi refinado com técnicas de
+engenharia de prompt para guiar o LLM a realizar uma pesquisa profunda e
+sintetizar informações de alta qualidade.
 """
 
 from typing import List
@@ -20,12 +22,12 @@ class DossierOutput(BaseModel):
     Schema Pydantic para a resposta JSON esperada ao gerar um dossiê.
     """
     dossie: str = Field(
-        ..., 
-        description="O dossiê completo e bem-organizado em formato Markdown."
+        ...,
+        description="O dossiê completo, técnico e bem-organizado em formato Markdown."
     )
     search_queries_used: List[str] = Field(
-        ..., 
-        description="A lista de queries de busca usadas para a investigação."
+        ...,
+        description="A lista de queries de busca avançadas usadas para a investigação."
     )
 
 
@@ -35,64 +37,67 @@ def get_contract(theme: str) -> LLMContract:
     Retorna o contrato (`LLMContract`) completo para a geração de um dossiê.
 
     Args:
-        theme (str): O tema a ser investigado e sobre o qual o dossiê
-                     será gerado.
+        theme (str): O tema a ser investigado em profundidade.
 
     Returns:
-        LLMContract: O objeto de contrato pronto para ser executado por um
-                     `ContentGeneratorAdapter`.
+        LLMContract: O objeto de contrato pronto para ser executado.
     """
     
     prompt_template = """
     # Missão
-    Você é um Jornalista Investigativo e Estrategista de Pesquisa. Sua especialidade é desconstruir um tema, conduzir uma investigação profunda usando a ferramenta de busca e, em seguida, sintetizar as descobertas em um dossiê completo e bem fundamentado.
+    Você é um Pesquisador Sênior e Comunicador Científico. Sua especialidade é conduzir investigações aprofundadas sobre temas complexos, priorizando fontes acadêmicas e técnicas, e sintetizar as descobertas em um dossiê claro, preciso e detalhado.
 
     # Tema para Investigação
     "{theme}"
 
-    # Tarefa Principal: Processo de Investigação em 3 Etapas
-    Sua tarefa é gerar um dossiê de pesquisa (`dossie`) e a lista de queries usadas (`search_queries_used`). Para isso, você DEVE seguir rigorosamente as três etapas abaixo.
+    # Tarefa Principal: Processo de Pesquisa e Síntese em 4 Etapas
+    Sua tarefa é gerar um dossiê de pesquisa (`dossie`) e a lista de queries usadas (`search_queries_used`). Você DEVE seguir rigorosamente as quatro etapas abaixo em sua cadeia de pensamento.
 
     ## Etapa 1: Análise e Desconstrução do Tema
-    Primeiro, analise o tema fornecido e identifique a **PERGUNTA CENTRAL** ou a **AFIRMAÇÃO PRINCIPAL** a ser investigada. Desconstrua o tema em seus componentes essenciais para guiar sua pesquisa.
-
-    1.  **Sujeito Principal:** Quem ou o que é o foco principal? (Ex: uma tecnologia, uma pessoa, um conceito, um evento).
-    2.  **Contexto/Ação:** Qual é o contexto, a ação ou a relevância do sujeito? (Ex: seu impacto na indústria, sua história, como funciona).
-    3.  **Escopo:** Qual é a delimitação da investigação? (Ex: focado em um país, em um período de tempo, em uma aplicação específica).
-
-    Essa análise inicial é o núcleo da sua investigação.
+    Primeiro, analise o tema para identificar seu **núcleo conceitual**. Desconstrua-o em suas entidades e palavras-chave primárias. Identifique os campos do conhecimento envolvidos (ex: ciência da computação, biologia molecular, engenharia de materiais).
 
     ## Etapa 2: Planejamento da Estratégia de Pesquisa
-    Com base na sua análise, você tem autonomia para definir o melhor caminho de pesquisa. Seu objetivo é decidir quais informações são cruciais para entender completamente o tema.
+    Com base na análise, planeje uma estratégia de busca focada em profundidade e confiabilidade.
 
-    Para isso, você deve:
-    1.  **Identificar Ângulos de Investigação:** Pense em quais áreas precisam de aprofundamento. Exemplos:
-        -   Definição e Histórico do [Sujeito].
-        -   Como o [Sujeito] funciona (Mecanismos, Detalhes Técnicos).
-        -   Aplicações Práticas e Casos de Uso.
-        -   Impacto, Vantagens e Desvantagens.
-        -   Principais Atores (Empresas, Pesquisadores, Instituições).
-        -   Estado da Arte e Tendências Futuras.
-        -   Dados, Estatísticas ou Estudos Relevantes.
-    2.  **Criar as Queries de Busca:** Com base nos seus ângulos de investigação, formule as queries de busca específicas que você usaria para encontrar essas informações. Essas queries devem ser listadas no campo `search_queries_used` da sua resposta final.
+    1.  **Fontes Prioritárias:** Sua pesquisa DEVE priorizar:
+        -   Artigos científicos (PubMed, arXiv, Google Scholar, Nature, Science).
+        -   Documentação técnica oficial de projetos ou tecnologias.
+        -   Patentes registradas.
+        -   Publicações de instituições de pesquisa renomadas (ex: MIT, Stanford, Max Planck Institute).
 
-    ## Etapa 3: Execução da Pesquisa e Criação do Dossiê
-    Execute seu plano de pesquisa usando a ferramenta de busca. Colete informações de fontes confiáveis.
+    2.  **Ângulos de Investigação Técnica:** Formule perguntas que guiem a pesquisa para os fundamentos do tema. Exemplos:
+        -   Qual o mecanismo de ação ou princípio fundamental?
+        -   Quais são os algoritmos, equações ou processos químicos subjacentes?
+        -   Quais os principais estudos (ex: ensaios clínicos, benchmarks) que validam o conceito?
+        -   Qual a evolução histórica dos principais componentes técnicos?
+        -   Quais são as limitações técnicas e os desafios atuais da área?
 
-    Sintetize todas as suas descobertas em um dossiê detalhado e bem organizado no campo `dossie`. O dossiê deve ser formatado em **Markdown** e incluir, no mínimo, as seguintes seções:
-    -   **Resumo Executivo:** Um parágrafo inicial que resume os pontos mais importantes da sua investigação.
-    -   **Contexto e Definição:** O que é o tema e qual seu histórico relevante.
-    -   **Análise Aprofundada:** O corpo principal da pesquisa, dividido em subtópicos claros (ex: "Como Funciona", "Aplicações Principais", "Impacto no Mercado").
-    -   **Atores Chave:** Lista e descrição das principais entidades envolvidas.
-    -   **Conclusão e Perspectivas Futuras:** Um resumo das implicações e o que esperar para o futuro.
+    3.  **Formulação de Queries Avançadas:** Crie queries de busca que usem terminologia específica e, se possível, operadores de busca para refinar os resultados. Essas serão as queries listadas em `search_queries_used`.
 
-    # Formato da Saída (JSON Obrigatório)
-    Sua resposta DEVE ser um único objeto JSON válido, sem nenhum texto antes ou depois, seguindo o schema abaixo.
+    ## Etapa 3: Execução da Pesquisa
+    Execute a pesquisa usando a ferramenta de busca. Cruce informações de múltiplas fontes para validar os fatos. **IGNORE e DESCARTE fontes de baixa qualidade**, como blogs de opinião, fóruns ou conteúdo superficial. Foque na síntese dos dados encontrados nas fontes prioritárias.
+
+    ## Etapa 4: Criação do Dossiê Completo
+    Sintetize todas as suas descobertas em um dossiê detalhado e bem organizado no campo `dossie`. O dossiê deve ser formatado em **Markdown** e seguir ESTRITAMENTE a seguinte estrutura de seções:
+
+    -   **Introdução Conceitual:** Um parágrafo que define o tema, seu contexto e sua relevância no campo científico/tecnológico.
+    -   **Análise Técnica Aprofundada:** O corpo principal da pesquisa, dividido em subtópicos claros (ex: "Mecanismo de Ação", "Arquitetura do Sistema", "Bases Moleculares"). Explique os "comos" e "porquês" em detalhe.
+    -   **Aplicações e Implicações Práticas:** Descreva onde essa tecnologia/conceito é ou pode ser aplicado. Qual o impacto prático?
+    -   **Estado da Arte e Desafios Futuros:** Resuma as pesquisas mais recentes e identifique os principais obstáculos ou questões em aberto para o avanço da área.
+    -   **Glossário de Termos-Chave:** Liste e defina de 3 a 5 termos técnicos essenciais mencionados no dossiê para facilitar a compreensão.
+
+    # Formato da Saída (JSON Obrigatório com Exemplo)
+    Sua resposta DEVE ser um único objeto JSON válido, sem nenhum texto antes ou depois. Siga o formato do exemplo abaixo.
 
     ```json
     {{
-    "dossie": "O dossiê completo em formato Markdown...",
-    "search_queries_used": ["query 1", "query 2", "..."]
+    "dossie": "# Dossiê: Grafeno em Supercapacitores\\n\\n## Introdução Conceitual\\nO grafeno, um alótropo bidimensional do carbono...\\n\\n## Análise Técnica Aprofundada\\n### Estrutura e Propriedades Elétricas\\nA hibridização sp2 dos átomos de carbono no grafeno resulta em...\\n\\n## Aplicações e Implicações Práticas\\n...\\n\\n## Estado da Arte e Desafios Futuros\\n...\\n\\n## Glossário de Termos-Chave\\n- **Supercapacitor:** Dispositivo de armazenamento de energia...\\n- **Alótropo:** ...",
+    "search_queries_used": [
+        "graphene supercapacitor mechanism of action review",
+        "graphene electrode fabrication techniques for energy storage",
+        "specific capacitance of graphene-based supercapacitors recent studies",
+        "challenges in commercializing graphene supercapacitors"
+    ]
     }}
     """
 
@@ -102,5 +107,5 @@ def get_contract(theme: str) -> LLMContract:
         prompt_template=prompt_template,
         output_schema=DossierOutput,
         tools=["web_search"],
-        input_variables={"theme": theme} 
+        input_variables={"theme": theme}
     )

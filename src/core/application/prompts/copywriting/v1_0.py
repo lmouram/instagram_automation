@@ -1,11 +1,12 @@
 # src/core/application/prompts/copywriting/v1_0.py
 
 """
-Módulo de Prompt para a Geração de Copy para Posts de Instagram.
+Módulo de Prompt para a Geração de Copy para Posts de Instagram (v1.0 - Refinado).
 
-Este arquivo encapsula a "receita" para a tarefa de negócio de transformar um
-dossiê informativo em um post de Instagram de alto engajamento, com título e
-descrição otimizados.
+Este arquivo encapsula a "receita" de negócio para transformar um dossiê técnico
+e um tema em um post de Instagram de alto engajamento. O prompt foi aprimorado
+com técnicas de Chain-of-Thought e Auto-Revisão para melhorar a qualidade e
+coesão da copy gerada.
 """
 
 from pydantic import BaseModel, Field
@@ -20,79 +21,86 @@ class CopywritingOutput(BaseModel):
     """
     title: str = Field(
         ...,
-        description="O título do post, curto e impactante, criado usando uma das 12 fórmulas de gancho.",
-        max_length=150 # Limite razoável para um título em imagem
+        description="O título do post, curto, claro e impactante, otimizado para ser inserido em uma imagem.",
+        max_length=150
     )
     description: str = Field(
         ...,
         description="A descrição (legenda) do post, baseada no dossiê, complementar ao título e otimizada para o Instagram.",
-        max_length=2200 # Limite do Instagram
+        max_length=2200
     )
 
 
 # 2. Fábrica de Contrato: Constrói a especificação completa da chamada ao LLM.
-def get_contract(dossier: str) -> LLMContract:
+def get_contract(theme: str, dossier: str) -> LLMContract:
     """
     Retorna o contrato (`LLMContract`) completo para a geração da copy.
 
     Args:
-        dossier (str): O conteúdo do dossiê de pesquisa que servirá de base
-                       para o post.
+        theme (str): O tema central do post.
+        dossier (str): O conteúdo do dossiê de pesquisa que servirá de base.
 
     Returns:
-        LLMContract: O objeto de contrato pronto para ser executado por um
-                     `ContentGeneratorAdapter`.
+        LLMContract: O objeto de contrato pronto para ser executado.
     """
     
     prompt_template = """
-    # Persona
-    Você é um Copywriter Sênior e Estrategista de Conteúdo para o Instagram. Sua especialidade é transformar informações complexas (dossiês) em posts de alto engajamento, utilizando técnicas psicológicas de retenção de atenção.
+# Persona
+Você é um Copywriter Sênior e Estrategista de Conteúdo para o Instagram, especialista em traduzir temas técnicos e densos em narrativas acessíveis e de alto engajamento.
 
-    # Contexto Principal (Dossiê de Pesquisa)
-    A seguir, o conteúdo informativo que deve ser a base para o post:
-    ---
-    {dossier}
-    ---
+# Contexto
+- **Tema Central:** "{theme}"
+- **Dossiê de Pesquisa (Base factual):**
+---
+{dossier}
+---
 
-    # Caixa de Ferramentas: 12 Fórmulas de Ganchos para Títulos
-    Você DEVE escolher e adaptar UMA das seguintes 12 fórmulas para criar o título do post.
+# Caixa de Ferramentas: Fórmulas de Ganchos para Títulos
+Você DEVE escolher e adaptar UMA das seguintes fórmulas para criar o título.
+1.  **Quebra de Expectativa:** "Todos pensam que [crença_comum] causa [problema]. A ciência aponta para outro lugar."
+2.  **Promessa Clara:** "Como [tecnologia/descoberta] está permitindo [resultado_desejado] sem [obstáculo_comum]."
+3.  **Erro Comum:** "O erro nº 1 que [público] comete ao tentar [objetivo] (e como evitá-lo)."
+4.  **Estatística de Choque:** "[Dado_impactante]% de [algo] é afetado por [fator]. Veja o que isso significa."
+5.  **Declaração Contraintuitiva:** "Por que [ação_aparentemente_boa] pode, na verdade, piorar [resultado]."
+6.  **Curiosidade Incompleta:** "Há um mecanismo simples que explica como [fenômeno_complexo] realmente funciona."
 
-    1.  **Pergunta Provocativa:** "Você sabia que [fato_surpreendente] pode estar te impedindo de [resultado_desejado]?"
-    2.  **Quebra de Expectativa:** "A maioria acredita que [crença_comum] para resolver [problema]. A verdade é outra."
-    3.  **Promessa Clara:** "Como alcançar [resultado_desejado] sem precisar de [sacrifício_ou_dor]."
-    4.  **Erro Comum:** "Se você ainda faz [erro_comum], você está perdendo [recurso_valioso]."
-    5.  **Mini-História:** "[Evento_recente] me ensinou a lição mais importante sobre [tema_do_post]."
-    6.  **Lista Específica:** "[Número] [erros/dicas] que você precisa [parar/começar] a fazer se quiser [resultado]."
-    7.  **Urgência (FOMO):** "Se você não aplicar [ação_simples] hoje, em [período] vai se arrepender de [consequência_negativa]."
-    8.  **Estatística de Choque:** "[Dado_impactante]% das pessoas [cometem_erro]. Veja como não ser uma delas."
-    9.  **Declaração Polêmica:** "[Crença_popular] é um mito. O que realmente funciona é [abordagem_alternativa]."
-    10. **Identificação Direta:** "Se você é [público] e está cansado de [dor_específica], este post é para você."
-    11. **Curiosidade Incompleta:** "Existe um [detalhe] simples que separa [os_que_têm_sucesso] dos [que_falham]."
-    12. **Benefício Rápido:** "Faça esta [ação_rápida] em [tempo_curto] e veja [resultado_imediato]."
+# Tarefa Principal: Processo de Criação de Copy em 4 Etapas
+Sua tarefa é gerar um `title` e uma `description`. Você DEVE seguir rigorosamente esta cadeia de pensamento em 4 etapas.
 
-    # Tarefa Principal
-    Com base no **Dossiê** e usando sua **Caixa de Ferramentas**, crie um `título` e uma `descrição` para um post de Instagram.
+## Etapa 1: Análise e Extração da "Grande Ideia"
+Analise o Tema e o Dossiê para encontrar a **"Grande Ideia"**: o insight, fato ou conclusão mais surpreendente, útil e poderoso que deve ser a espinha dorsal de todo o post.
 
-    ## Requisitos para o Título (`title`):
-    -   Deve ser uma adaptação direta de UMA das 12 fórmulas acima.
-    -   Deve ser curto, impactante e otimizado para ser inserido em uma imagem.
-    -   Máximo de 15 palavras.
+## Etapa 2: Planejamento Estratégico da Copy
+Antes de escrever, defina seu plano:
+1.  **Público-Alvo:** Para quem é esta mensagem? (Ex: estudantes, profissionais da área, entusiastas de tecnologia).
+2.  **Emoção-Chave:** Qual emoção o post deve despertar? (Curiosidade, Urgência, Empoderamento, Surpresa).
+3.  **Seleção da Fórmula:** Com base na "Grande Ideia" e na "Emoção-Chave", escolha a fórmula mais adequada da sua Caixa de Ferramentas.
 
-    ## Requisitos para a Descrição (`description`):
-    -   Deve ser um texto informativo e valioso, utilizando os fatos e dados do **Dossiê**.
-    -   **Gancho Inicial:** Os primeiros 125 caracteres DEVEM ser um gancho poderoso que complementa e expande a curiosidade gerada pelo `título`.
-    -   **Conexão:** O texto deve ser totalmente conectado ao título, entregando a promessa feita por ele.
-    -   **Tamanho:** Deve respeitar o limite de legendas do Instagram (máximo de 2.200 caracteres), mas idealmente ser conciso (entre 3 a 5 parágrafos curtos).
-    -   **Formatação:** Use quebras de linha para criar parágrafos curtos e legíveis. Inclua de 3 a 5 emojis relevantes. Finalize com 5-7 hashtags estratégicas.
+## Etapa 3: Criação e Revisão do Título (`title`)
+1.  **Geração Inicial:** Crie uma primeira versão do título aplicando a fórmula escolhida à "Grande Ideia".
+2.  **Ciclo de Revisão OBRIGATÓRIO:** Avalie o título gerado com a seguinte checklist. SE QUALQUER RESPOSTA FOR "NÃO", REESCREVA O TÍTULO ATÉ QUE TODAS SEJAM "SIM".
+    -   **Clareza:** A frase tem sentido lógico e é fácil de entender imediatamente? (SIM/NÃO)
+    -   **Relevância:** O título reflete fielmente a "Grande Ideia" do post? (SIM/NÃO)
+    -   **Intriga:** O título gera curiosidade suficiente para fazer alguém parar de rolar o feed? (SIM/NÃO)
+    -   **Concisão:** O título tem menos de 15 palavras? (SIM/NÃO)
+3.  **Versão Final:** Apenas o título que passar por todas as verificações deve ser usado no output.
 
-    # Formato da Saída (JSON Obrigatório)
-    Sua resposta DEVE ser um único objeto JSON válido, sem nenhum texto antes ou depois, seguindo o schema.
+## Etapa 4: Criação da Descrição (`description`)
+Escreva a legenda completa do post seguindo estas regras:
+-   **Conexão Total:** A descrição deve "cumprir a promessa" feita pelo título final. Use os fatos do Dossiê como evidência.
+-   **Gancho Inicial:** A primeira frase deve expandir o gancho do título e prender a atenção.
+-   **Estrutura Lógica:** Em 2 a 4 parágrafos curtos, explique a "Grande Ideia", seu contexto e por que ela é importante para o público-alvo.
+-   **Formatação:** Use quebras de linha para legibilidade. Inclua 3-5 emojis relevantes.
+-   **Chamada para Ação (CTA) e Hashtags:** Termine com um convite (ex: "O que você acha disso? Comente abaixo!") e 5-7 hashtags estratégicas.
 
-    ```json
-    {{
-    "title": "O título impactante gerado a partir de uma das 12 fórmulas.",
-    "description": "A legenda completa do post, começando com um gancho complementar, desenvolvendo o tema do dossiê, e finalizando com hashtags."
-    }}
+# Formato da Saída (JSON Obrigatório)
+Sua resposta DEVE ser um único objeto JSON válido, sem nenhum texto antes ou depois.
+
+```json
+{{
+  "title": "A ciência por trás do jejum intermitente vai além da perda de peso.",
+  "description": "Você sabia que o jejum intermitente pode ativar um processo de 'reciclagem celular' chamado autofagia? 🤯\\n\\nNão se trata apenas de comer menos, mas de QUANDO você come. Ao dar ao seu corpo longos períodos sem comida, você força suas células a 'limpar a casa', removendo componentes danificados. Estudos em animais sugerem que isso pode ter implicações para a longevidade e a saúde cerebral.\\n\\nClaro, não é para todos e precisa ser feito com orientação. Mas a biologia por trás é fascinante!\\n\\nVocê já tentou ou tem curiosidade sobre o jejum intermitente? Comente abaixo! 👇\\n\\n#jejumintermitente #autofagia #ciencia #nutricao #bemestar #saudecelular #biohacking"
+}}
     """
 
     return LLMContract(
@@ -100,6 +108,8 @@ def get_contract(dossier: str) -> LLMContract:
         prompt_version="1.0",
         prompt_template=prompt_template,
         output_schema=CopywritingOutput,
-        input_variables={"dossier": dossier}
-        # `tools` fica vazio por padrão, pois não precisamos de busca aqui.
+        input_variables={
+            "theme": theme,
+            "dossier": dossier
+        }
     )

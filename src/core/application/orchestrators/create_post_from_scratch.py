@@ -81,12 +81,22 @@ async def create_post_from_scratch_orchestrator(
         if run.current_step == "dossier_created":
             logger.info("Executando etapa 'dossier_created': Geração da copy.")
             context = RunContext(workflow_name=run.workflow_name, run_id=run.run_id)
+            
+            # --- CORREÇÃO APLICADA AQUI ---
+            # Pega o 'theme' original do payload e o 'dossier' do state_data
             dossier_content = run.state_data.get("dossier_content")
-            if not dossier_content:
-                raise ValueError("Dossiê não encontrado no estado para a etapa de copywriting.")
+            original_theme = run.payload.get("theme")
+            if not dossier_content or not original_theme:
+                raise ValueError("Dossiê ou tema original não encontrado no estado para a etapa de copywriting.")
+            
+            # Passa o 'theme' como um novo argumento para o caso de uso
             copy_result = await copywriter_use_case(
-                dossier=dossier_content, context=context, step_key="generate_copy",
-                content_generator=content_generator, state_repo=state_repo
+                theme=original_theme,
+                dossier=dossier_content,
+                context=context,
+                step_key="generate_copy",
+                content_generator=content_generator,
+                state_repo=state_repo
             )
             run.state_data.update(copy_result)
             run.current_step = "copy_created"
@@ -97,15 +107,20 @@ async def create_post_from_scratch_orchestrator(
         if run.current_step == "copy_created":
             logger.info("Executando etapa 'copy_created': Geração da Imagem Base.")
             context = RunContext(workflow_name=run.workflow_name, run_id=run.run_id)
-            dossier = run.state_data.get("dossier_content")
+            original_theme = run.payload.get("theme") # Pega o tema para o caso de uso da imagem
             title = run.state_data.get("title")
             description = run.state_data.get("description")
-            if not all([dossier, title, description]):
-                raise ValueError("Dados ausentes no estado para a geração da imagem.")
+            if not all([original_theme, title, description]):
+                raise ValueError("Tema, título ou descrição ausentes no estado para a geração da imagem.")
             image_bytes = await create_image_use_case(
-                dossier=dossier, copy_title=title, copy_description=description,
-                context=context, step_key="create_image", content_generator=content_generator,
-                media_generator=media_generator, state_repo=state_repo,
+                theme=original_theme,
+                copy_title=title,
+                copy_description=description,
+                context=context,
+                step_key="create_image",
+                content_generator=content_generator,
+                media_generator=media_generator,
+                state_repo=state_repo,
             )
             image_filename = "post_image.jpg"
             saved_path = await state_repo.save_artifact(context, image_filename, image_bytes)
@@ -119,25 +134,19 @@ async def create_post_from_scratch_orchestrator(
         if run.current_step == "image_created":
             logger.info("Executando etapa 'image_created': Edição e Renderização Final da Imagem.")
             context = RunContext(workflow_name=run.workflow_name, run_id=run.run_id)
-            
             image_base_filename = run.state_data.get("generated_image_filename")
             title = run.state_data.get("title")
             if not all([image_base_filename, title]):
                 raise ValueError("Nome do arquivo da imagem base ou título ausente do estado.")
-            
             original_image_bytes = await state_repo.load_artifact(context, image_base_filename)
-
             final_image_bytes = await edit_image_use_case(
                 image_bytes=original_image_bytes, title=title,
                 theme=theme, context=context, state_repo=state_repo,
             )
-            
             final_filename = "final_post.jpg"
             final_path = await state_repo.save_artifact(context, final_filename, final_image_bytes)
-            
             run.state_data["final_image_path"] = final_path
             run.state_data["final_image_filename"] = final_filename
-
             run.current_step = "final_image_created"
             run.step_attempt = 0
             logger.info(f"Etapa 'image_created' concluída. Imagem final salva. Próxima: '{run.current_step}'")

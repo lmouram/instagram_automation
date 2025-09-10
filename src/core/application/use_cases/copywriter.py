@@ -4,23 +4,23 @@
 Caso de Uso: Gerar Copy para Post de Instagram.
 
 Este caso de uso invoca um LLM com persona de copywriter para transformar um
-dossiê informativo em um título e descrição persuasivos para um post,
+tema e um dossiê informativo em um título e descrição persuasivos,
 garantindo idempotência.
 """
 
 import logging
 from typing import Dict
 
-from src.core.domain import RunContext
-# --- CORREÇÃO AQUI ---
-# Importa o registro central de prompts
 from src.core.application.prompts import get_prompt_contract
-from src.ports import ContentGeneratorPort, StateRepositoryPort
+from src.core.domain.entities import RunContext
+from src.ports.content_generator import ContentGeneratorPort
+from src.ports.state_repository import StateRepositoryPort
 
 logger = logging.getLogger(__name__)
 
 
 async def copywriter_use_case(
+    theme: str,
     dossier: str,
     context: RunContext,
     step_key: str,
@@ -28,18 +28,19 @@ async def copywriter_use_case(
     state_repo: StateRepositoryPort,
 ) -> Dict[str, str]:
     """
-    Gera título e descrição para um post de Instagram a partir de um dossiê.
+    Gera título e descrição para um post de Instagram a partir de um tema e dossiê.
 
     Verifica o cache de estado para idempotência. Se não houver resultado em
     cache, ele constrói o `LLMContract` para copywriting, invoca o
     `content_generator`, salva o resultado e o retorna.
 
     Args:
+        theme (str): O tema central que guia a criação da copy.
         dossier (str): O conteúdo informativo do dossiê de pesquisa.
         context (RunContext): O contexto da execução do workflow.
         step_key (str): A chave única para esta etapa (ex: "generate_copy").
-        content_generator (ContentGeneratorPort): A porta genérica para o serviço de IA.
-        state_repo (StateRepositoryPort): A porta para o cache de resultados.
+        content_generator (ContentGeneratorPort): Porta para o serviço de IA.
+        state_repo (StateRepositoryPort): Porta para o cache de resultados.
 
     Returns:
         Dict[str, str]: Um dicionário contendo "title" e "description".
@@ -55,21 +56,22 @@ async def copywriter_use_case(
 
     logger.info(f"Gerando nova copy para a chave '{step_key}'.")
     
-    # 1. Usa o registro para obter o contrato
+    # 1. Usa o registro para obter o contrato, agora passando o 'theme'.
     copy_contract = get_prompt_contract(
         prompt_name="copywriting",
-        version="1.0", # ou "latest"
+        version="1.0",
+        theme=theme,
         dossier=dossier
     )
 
-    # 2. Invoca o gerador de conteúdo genérico com o contrato
+    # 2. Invoca o gerador de conteúdo genérico
     copy_result_dict = await content_generator.generate(copy_contract)
     
-    # 3. Salva o dicionário de resultado completo no estado
+    # 3. Salva o resultado completo no estado
     await state_repo.save(context, step_key, copy_result_dict)
     logger.info(f"Nova copy salva no estado para a chave '{step_key}'.")
     
-    # 4. Valida se as chaves esperadas estão presentes antes de retornar
+    # 4. Valida se as chaves esperadas estão presentes
     if "title" not in copy_result_dict or "description" not in copy_result_dict:
         raise ValueError("A resposta do LLM para a copy não continha 'title' e/ou 'description'.")
 

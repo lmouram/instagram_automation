@@ -3,10 +3,9 @@
 """
 Módulo do Adaptador de Repositório de Estado Atômico baseado em Arquivos.
 
-Este arquivo contém a implementação concreta da `StateRepositoryPort`. Ele salva
-estados atômicos (resultados de etapas idempotentes) e artefatos binários
-dentro do diretório da execução do workflow, garantindo que todos os
-artefatos de uma execução fiquem co-localizados.
+Este arquivo contém a implementação concreta da `StateRepositoryPort`. Ele salva,
+carrega e deleta estados atômicos (JSON) e artefatos binários dentro do
+diretório da execução do workflow.
 
 Utiliza `aiofiles` para I/O de arquivo assíncrono e `Pillow` para processamento
 de imagem.
@@ -19,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import aiofiles
+import aiofiles.os
 from PIL import Image
 
 from src.core.domain.entities import RunContext
@@ -89,7 +89,7 @@ class FileStateRepository(StateRepositoryPort):
         filename = _sanitize_filename(key, ext=".json")
         file_path = self._get_atomic_states_dir(context) / filename
 
-        if not file_path.exists():
+        if not await aiofiles.os.path.exists(file_path):
             return None
 
         logger.debug(f"Carregando estado da chave '{key}' de '{file_path}'")
@@ -151,7 +151,7 @@ class FileStateRepository(StateRepositoryPort):
         sanitized_filename = _sanitize_filename(filename)
         file_path = self._get_atomic_states_dir(context) / sanitized_filename
 
-        if not file_path.is_file():
+        if not await aiofiles.os.path.isfile(file_path):
             msg = f"Artefato '{sanitized_filename}' não encontrado em '{file_path.parent}'."
             logger.warning(msg)
             raise ArtifactNotFoundError(msg)
@@ -163,3 +163,34 @@ class FileStateRepository(StateRepositoryPort):
         except IOError as e:
             logger.error(f"Falha ao carregar artefato de '{file_path}': {e}", exc_info=True)
             raise
+
+    async def delete(self, context: RunContext, key: str) -> bool:
+        """
+        Deleta um estado (JSON) e/ou artefato associado a uma chave/nome.
+        """
+        atomic_dir = self._get_atomic_states_dir(context)
+        was_deleted = False
+
+        # Constrói caminhos para o estado JSON e um artefato com o mesmo nome base
+        state_filename = _sanitize_filename(key, ext=".json")
+        artifact_filename = _sanitize_filename(key)
+
+        file_paths_to_check = [
+            atomic_dir / state_filename,
+            atomic_dir / artifact_filename,
+        ]
+
+        # Usa um set para lidar com casos onde os nomes podem ser iguais
+        for file_path in set(file_paths_to_check):
+            try:
+                if await aiofiles.os.path.isfile(file_path):
+                    await aiofiles.os.remove(file_path)
+                    logger.info(f"Deletado com sucesso: {file_path}")
+                    was_deleted = True
+            except OSError as e:
+                logger.warning(f"Falha ao deletar arquivo {file_path}: {e}", exc_info=False)
+        
+        if not was_deleted:
+            logger.debug(f"Nenhum estado ou artefato encontrado para deletar com a chave '{key}'.")
+
+        return was_deleted
