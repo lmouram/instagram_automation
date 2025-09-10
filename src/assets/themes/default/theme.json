@@ -1,0 +1,26 @@
+{
+  "theme_name": "Default Vertical",
+  "version": "1.0.0",
+  "description": "Template com título e subtítulo formatados diferentemente",
+  "assets": {
+    "fonts": {
+      "title": "fonts/Epunda_Sans/EpundaSans-Black.ttf",
+      "epunda_bold": "fonts/Epunda_Sans/EpundaSans-Bold.ttf",
+      "poppins": "fonts/poppins/Poppins-Black.ttf",
+      "source": "fonts/Source_Sans_3/SourceSans3-Bold.ttf",
+      "inter": "fonts/Inter/Inter_28pt-BlackItalic.ttf"
+    },
+    "templates": {
+      "single_post": "templates/single_post_v2.html"
+    }
+  },
+  "settings": {
+    "mask_opacity": 0.35,
+    "viewport": {
+      "width": 896,
+      "height": 1280
+    },
+    "output_format": "JPEG",
+    "output_quality": 95
+  }
+}

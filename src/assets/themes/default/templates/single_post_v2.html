@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post para Instagram</title>
+    <style>
+        /* Fontes disponíveis no projeto */
+        @font-face {
+            font-family: 'EpundaSans';
+            src: url('data:font/truetype;base64,{{ font_title_b64 }}') format('truetype');
+            font-weight: 900;
+        }
+
+        @font-face {
+            font-family: 'EpundaSansBold';
+            src: url('data:font/truetype;base64,{{ font_epunda_bold_b64 }}') format('truetype');
+            font-weight: 700;
+        }
+
+        @font-face {
+            font-family: 'Poppins';
+            src: url('data:font/truetype;base64,{{ font_poppins_b64 }}') format('truetype');
+            font-weight: 900;
+        }
+
+        @font-face {
+            font-family: 'SourceSans';
+            src: url('data:font/truetype;base64,{{ font_source_b64 }}') format('truetype');
+            font-weight: 900;
+        }
+
+        @font-face {
+            font-family: 'Inter';
+            src: url('data:font/truetype;base64,{{ font_inter_b64 }}') format('truetype');
+            font-weight: 900;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: {{ viewport_width }}px;
+            height: {{ viewport_height }}px;
+            position: relative;
+            overflow: hidden;
+            font-family: 'EpundaSans', sans-serif;
+        }
+
+        .background {
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/jpeg;base64,{{ background_image_b64 }}');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+
+        .background::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                135deg, 
+                rgba(0, 0, 0, 0.4) 0%, 
+                rgba(0, 0, 0, 0.1) 50%, 
+                rgba(0, 0, 0, 0.5) 100%
+            );
+            z-index: 1;
+        }
+
+        .overlay-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 80px 60px;
+            z-index: 2;
+        }
+
+        .title-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            max-width: 90%;
+        }
+
+        .title-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+        }
+
+        .main-title {
+            color: #ffffff;
+            font-size: clamp(64px, 8vw, 80px);
+            line-height: 1.2;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            font-weight: 900;
+            font-family: 'EpundaSans', sans-serif;
+            text-shadow: 
+                2px 2px 4px rgba(0, 0, 0, 0.8),
+                0 0 20px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .subtitle {
+            font-family: 'Inter', sans-serif;
+            font-weight: 900;
+            font-style: italic;
+            text-transform: uppercase;
+            font-size: clamp(21px, 3.1vw, 27px);
+            line-height: 1.4;
+            letter-spacing: 0.03em;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 
+                1px 1px 4px rgba(0, 0, 0, 0.8),
+                0 0 15px rgba(0, 0, 0, 0.6);
+
+            /* visível imediatamente (sem depender da animação) */
+            opacity: 1 !important;
+            animation: fadeInUp 0.8s ease-out forwards;
+            transform: none !important;
+        }
+
+        /* Tag principal */
+        .tag {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 30px;
+            padding: 16px 40px;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            font-family: 'SourceSans', sans-serif;
+        }
+
+        /* Responsividade */
+        @media (max-width: 600px) {
+            .overlay-container {
+                padding: 60px 40px;
+            }
+            
+            .title-container {
+                gap: 20px;
+            }
+            
+            .main-title {
+                font-size: clamp(48px, 10vw, 64px);
+            }
+            
+            .subtitle {
+                font-size: clamp(24px, 5vw, 30px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background"></div>
+
+    <div class="overlay-container">
+        <div class="title-area">
+            <div class="title-container">
+                <!-- Usando Jinja2 para separar automaticamente e pegar configuração do JSON -->
+                {% set title_parts = title.split('.') %}
+                {% if title_parts|length > 1 %}
+                    <div class="main-title">{{ title_parts[0] }}.</div>
+                    <div class="subtitle">{{ title_parts[1:] | join('.') | trim }}</div>
+                {% else %}
+                    {% set title_parts = title.split('?') %}
+                    {% if title_parts|length > 1 %}
+                        <div class="main-title">{{ title_parts[0] }}?</div>
+                        <div class="subtitle">{{ title_parts[1:] | join('?') | trim }}</div>
+                    {% else %}
+                        {% set title_parts = title.split('!') %}
+                        {% if title_parts|length > 1 %}
+                            <div class="main-title">{{ title_parts[0] }}!</div>
+                            <div class="subtitle">{{ title_parts[1:] | join('!') | trim }}</div>
+                        {% else %}
+                            <div class="main-title">{{ title }}</div>
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="tag">leia a descrição</div>
+    </div>
+</body>
+</html>

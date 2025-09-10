@@ -4,133 +4,162 @@
 Módulo do Adaptador de Repositório de Estado Atômico baseado em Arquivos.
 
 Este arquivo contém a implementação concreta da `StateRepositoryPort`. Ele salva
-estados atômicos (resultados de etapas idempotentes) dentro do diretório da
-execução do workflow ao qual pertencem, garantindo que todos os artefatos
-de uma execução fiquem co-localizados.
-"""
+estados atômicos (resultados de etapas idempotentes) e artefatos binários
+dentro do diretório da execução do workflow, garantindo que todos os
+artefatos de uma execução fiquem co-localizados.
 
-import re
-import asyncio
-import hashlib
+Utiliza `aiofiles` para I/O de arquivo assíncrono e `Pillow` para processamento
+de imagem.
+"""
 import json
 import logging
-import os
-import tempfile
+import re
+from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-# RunContext é uma estrutura de dados do DOMÍNIO
-from src.core.domain import RunContext 
+import aiofiles
+from PIL import Image
 
-# Importa a nova porta e o DTO de contexto
-from src.ports import StateRepositoryPort
+from src.core.domain.entities import RunContext
+from src.ports.state_repository import StateRepositoryPort
 
 logger = logging.getLogger(__name__)
 
+
+# --- Exceção Específica do Adaptador ---
+class ArtifactNotFoundError(FileNotFoundError):
+    """Levantada quando um arquivo de artefato não é encontrado."""
+    pass
+
+
+# --- Padrão do Projeto para Configuração de Caminho ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-# O diretório base agora aponta para a raiz dos estados de workflow
 BASE_STATES_DIR = PROJECT_ROOT / "states"
+# ----------------------------------------------------
+
+
+def _sanitize_filename(name: str, ext: str = "") -> str:
+    """
+    Converte uma string em um nome de arquivo seguro, adicionando uma extensão.
+    """
+    base, *ext_parts = name.rsplit('.', 1)
+    if ext_parts:
+        name_base = base
+        name_ext = f".{ext_parts[0]}"
+    else:
+        name_base = name
+        name_ext = ext
+
+    s = name_base.lower()
+    s = re.sub(r'[^\w\s-]', '', s)
+    s = re.sub(r'[\s_-]+', '-', s).strip('-')
+
+    if not s:
+        raise ValueError(f"O nome base '{name_base}' resultou em um nome de arquivo vazio.")
+
+    return f"{s}{name_ext}"
 
 
 class FileStateRepository(StateRepositoryPort):
     """
-    Implementa a `StateRepositoryPort` usando arquivos JSON em disco.
+    Implementa a `StateRepositoryPort` usando arquivos JSON e binários em disco.
     """
 
     def __init__(self):
         """
-        Inicializa o repositório de estado.
-        O diretório base `states/` é gerenciado pelo `FileWorkflowRepository`.
+        Inicializa o repositório, garantindo que o diretório base exista.
         """
-        self._base_dir = BASE_STATES_DIR
+        self.base_path = BASE_STATES_DIR
+        self.base_path.mkdir(parents=True, exist_ok=True)
         logger.info(
-            f"FileStateRepository inicializado. Diretório base para workflows: '{self._base_dir}'"
+            f"FileStateRepository inicializado. Diretório base: '{self.base_path}'"
         )
 
     def _get_atomic_states_dir(self, context: RunContext) -> Path:
         """
-        Cria e retorna o caminho para o diretório de estados atômicos de uma execução.
-        Ex: .../states/workflow_name/run_id/atomic_states/
+        Constrói e garante a existência do diretório 'atomic_states' para um run.
         """
-        atomic_dir = self._base_dir / context.workflow_name / context.run_id / "atomic_states"
-        try:
-            atomic_dir.mkdir(parents=True, exist_ok=True)
-            return atomic_dir
-        except OSError as e:
-            logger.error(f"Não foi possível criar o diretório de estados atômicos: {e}", exc_info=True)
-            raise
-
-    def _key_to_filename(self, key: str) -> str: # Vamos manter o nome, mas mudar a lógica
-        """
-        Converte uma chave de idempotência em um nome de arquivo seguro e legível.
-        Ex: "Create Dossier: Step 1" -> "create-dossier-step-1.json"
-        """
-        # 1. Converte para minúsculas
-        s = key.lower()
-        # 2. Remove caracteres que não são alfanuméricos, espaços ou hífens
-        s = re.sub(r'[^\w\s-]', '', s)
-        # 3. Substitui múltiplos espaços ou hífens por um único hífen
-        s = re.sub(r'[\s-]+', '-', s).strip('-')
-        
-        # Garante que não está vazio
-        if not s:
-            # Fallback para hash se a chave for completamente inválida
-            return f"{hashlib.sha256(key.encode()).hexdigest()}.json"
-            
-        return f"{s}.json"
+        path = self.base_path / context.workflow_name / context.run_id / "atomic_states"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
 
     async def load(self, context: RunContext, key: str) -> Optional[Dict[str, Any]]:
-        """Carrega os dados associados a uma chave, dentro de um contexto de execução."""
-        try:
-            atomic_dir = self._get_atomic_states_dir(context)
-            filename = self._key_to_filename(key)
-            file_path = atomic_dir / filename
-        except Exception as e:
-            logger.error(f"Erro ao construir o caminho do estado para a chave '{key}': {e}", exc_info=True)
-            return None
+        """Carrega o estado de um arquivo JSON de forma assíncrona."""
+        filename = _sanitize_filename(key, ext=".json")
+        file_path = self._get_atomic_states_dir(context) / filename
 
         if not file_path.exists():
             return None
 
-        logger.debug(f"Carregando estado da chave '{key}' do arquivo '{file_path}'")
-        
-        def _read_file():
-            try:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.error(f"Erro ao carregar o arquivo de estado {file_path}: {e}", exc_info=True)
-                return None
-        
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, _read_file)
+        logger.debug(f"Carregando estado da chave '{key}' de '{file_path}'")
+        try:
+            async with aiofiles.open(file_path, "r", encoding="utf-8") as f:
+                content = await f.read()
+                return json.loads(content)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error(f"Falha ao carregar estado de '{file_path}': {e}", exc_info=True)
+            return None
 
     async def save(self, context: RunContext, key: str, data: Dict[str, Any]) -> None:
-        """Salva os dados associados a uma chave, dentro de um contexto de execução."""
+        """Salva o estado em um arquivo JSON de forma assíncrona."""
+        filename = _sanitize_filename(key, ext=".json")
+        file_path = self._get_atomic_states_dir(context) / filename
+
+        logger.debug(f"Salvando estado da chave '{key}' em '{file_path}'")
         try:
-            atomic_dir = self._get_atomic_states_dir(context)
-            filename = self._key_to_filename(key)
-            file_path = atomic_dir / filename
-        except Exception as e:
-            logger.error(f"Erro ao construir o caminho para salvar o estado da chave '{key}': {e}", exc_info=True)
+            async with aiofiles.open(file_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(data, indent=2, ensure_ascii=False))
+        except IOError as e:
+            logger.error(f"Falha ao salvar estado em '{file_path}': {e}", exc_info=True)
             raise
 
-        logger.debug(f"Salvando estado da chave '{key}' no arquivo '{file_path}'")
+    async def save_artifact(self, context: RunContext, filename: str, data: bytes) -> str:
+        """
+        Salva um artefato binário, convertendo para JPEG se for uma imagem.
+        """
+        sanitized_filename = _sanitize_filename(filename)
+        file_path = self._get_atomic_states_dir(context) / sanitized_filename
 
-        def _atomic_write():
-            fd, tmp_path_str = tempfile.mkstemp(dir=atomic_dir, suffix=".tmp")
-            tmp_path = Path(tmp_path_str)
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    json.dump(data, f, indent=4, ensure_ascii=False)
-                os.replace(tmp_path, file_path)
-            finally:
-                if tmp_path.exists():
-                    tmp_path.unlink()
-
+        logger.info(f"Salvando artefato binário em: '{file_path}'")
         try:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, _atomic_write)
+            output_bytes = data
+            if sanitized_filename.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                logger.debug("Convertendo imagem para formato JPEG antes de salvar.")
+                with Image.open(BytesIO(data)) as img:
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+                    
+                    buffer = BytesIO()
+                    img.save(buffer, format='JPEG', quality=95)
+                    output_bytes = buffer.getvalue()
+
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(output_bytes)
+            
+            absolute_path = str(file_path.resolve())
+            logger.info(f"Artefato salvo com sucesso em '{absolute_path}'.")
+            return absolute_path
         except Exception as e:
-            logger.error(f"Falha na escrita atômica para a chave '{key}': {e}", exc_info=True)
+            logger.error(f"Falha ao salvar artefato em '{file_path}': {e}", exc_info=True)
+            raise
+
+    async def load_artifact(self, context: RunContext, filename: str) -> bytes:
+        """
+        Carrega um artefato binário a partir do repositório de estado.
+        """
+        sanitized_filename = _sanitize_filename(filename)
+        file_path = self._get_atomic_states_dir(context) / sanitized_filename
+
+        if not file_path.is_file():
+            msg = f"Artefato '{sanitized_filename}' não encontrado em '{file_path.parent}'."
+            logger.warning(msg)
+            raise ArtifactNotFoundError(msg)
+        
+        logger.debug(f"Carregando artefato '{sanitized_filename}' de '{file_path}'")
+        try:
+            async with aiofiles.open(file_path, "rb") as f:
+                return await f.read()
+        except IOError as e:
+            logger.error(f"Falha ao carregar artefato de '{file_path}': {e}", exc_info=True)
             raise

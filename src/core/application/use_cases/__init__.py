@@ -17,6 +17,8 @@ from .create_dossier import create_dossier_use_case
 from .create_post import create_post_use_case
 from .publish_post_immediately import publish_post_immediately_use_case
 from .publish_scheduled_posts import publish_scheduled_posts_use_case
+from .create_image import create_image_use_case
+from .edit_image import edit_image_use_case
 
 __all__ = [
     "approve_post_use_case",
@@ -25,4 +27,6 @@ __all__ = [
     "create_post_use_case",
     "publish_post_immediately_use_case",
     "publish_scheduled_posts_use_case",
+    "create_image_use_case",
+    "edit_image_use_case"
 ]

@@ -39,6 +39,7 @@ from .social_publisher import SocialMediaPublisherPort
 from .storage import StoragePort
 from .workflow_repository import WorkflowRepositoryPort
 from .state_repository import StateRepositoryPort
+from .theme_loader import ThemeLoaderPort
 
 __all__ = [
     "AuditEventRepositoryPort",
@@ -50,4 +51,5 @@ __all__ = [
     "StoragePort",
     "WorkflowRepositoryPort", # <-- Adicionado
     "StateRepositoryPort", # <-- Adicionado
+    "ThemeLoaderPort", # <-- Adicionado
 ]

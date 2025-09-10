@@ -1,4 +1,4 @@
-# src/core/application/prompts/copywriting.py
+# src/core/application/prompts/copywriting/v1_0.py
 
 """
 Módulo de Prompt para a Geração de Copy para Posts de Instagram.

@@ -1,4 +1,4 @@
-# src/core/application/prompts/dossier.py
+# src/core/application/prompts/dossier/v1_0.py
 
 """
 Módulo de Prompt para a Geração de Dossiês de Pesquisa.

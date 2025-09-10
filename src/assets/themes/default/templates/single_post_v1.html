@@ -1,0 +1,109 @@
+<!-- src/assets/themes/default/templates/single_post_v1.html -->
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post para Instagram</title>
+    <style>
+        /* 
+         * Define a fonte principal que será usada no template.
+         * A fonte é embutida diretamente no CSS usando Base64 para garantir
+         * que o Playwright possa renderizá-la em qualquer ambiente, sem
+         * depender de fontes instaladas no sistema operacional.
+         */
+        @font-face {
+            font-family: 'TitleFont';
+            src: url('data:font/truetype;base64,{{ font_title_b64 }}') format('truetype');
+            font-weight: 900;
+        }
+
+        /* Estilos base para garantir as dimensões exatas e remover margens */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: {{ viewport_width }}px;
+            height: {{ viewport_height }}px;
+            position: relative;
+            overflow: hidden;
+            font-family: 'TitleFont', sans-serif; /* Fallback para sans-serif */
+        }
+
+        /* Camada de fundo com a imagem gerada */
+        .background {
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/jpeg;base64,{{ background_image_b64 }}');
+            background-size: cover;
+            background-position: center;
+        }
+        
+        /* 
+         * Camada de sobreposição para o texto. Usa Flexbox para posicionar
+         * os elementos filhos (título e tag) nas extremidades verticais.
+         */
+        .overlay-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Alinha o primeiro filho no topo, o último na base */
+            align-items: center;            /* Centraliza horizontalmente */
+            box-sizing: border-box;         /* Garante que o padding seja calculado corretamente */
+            padding: 100px 70px;            /* Margens superior/inferior e laterais */
+        }
+
+        /* Estilo para o título principal (H1) */
+        h1.title {
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 76px; 
+            line-height: 1.5;
+            text-shadow: 3px 3px 10px rgba(0, 0, 0, 0.75);
+            margin: 0;
+            
+            /* A transformação para maiúsculas é feita aqui para garantir consistência visual */
+            text-transform: uppercase;
+            
+
+        }
+
+        /* Estilo para a tag "leia a descrição" */
+        .tag {
+            background-color: transparent;
+            color: white;
+            border: 2px solid white;
+            border-radius: 50px; 
+            padding: 14px 36px;
+            font-size: 28px;
+            letter-spacing: 0.05em;
+            text-transform: lowercase;
+            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.5); 
+
+            position: absolute;
+            bottom: 70px;  /* mesmo valor do padding lateral */
+            left: 50%;
+            transform: translateX(-50%);    
+        }
+    </style>
+</head>
+<body>
+    <!-- A imagem de fundo é a primeira camada -->
+    <div class="background"></div>
+
+    <!-- O contêiner de sobreposição contém os elementos de texto -->
+    <div class="overlay-container">
+        <!-- 
+          NOVA LÓGICA DE APRESENTAÇÃO APLICADA AQUI:
+          1. `replace('.', '.<br>')`: Substitui cada ponto por um ponto seguido de uma quebra de linha HTML.
+          2. `safe`: Garante que a tag `<br>` seja renderizada como HTML e não como texto.
+        -->
+        <h1 class="title">{{ title | replace('.', '.<br>') | replace('?', '?<br>') | replace('!', '?<br>') | safe }}</h1>
+        <div class="tag">leia a descrição</div>
+    </div>
+</body>
+</html>
